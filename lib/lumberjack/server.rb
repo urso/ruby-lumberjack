@@ -33,6 +33,8 @@ module Lumberjack
         end
       end
 
+      @close = false
+
       @tcp_server = TCPServer.new(@options[:address], @options[:port])
 
       # Query the port in case the port number is '0'
@@ -46,7 +48,7 @@ module Lumberjack
     end # def initialize
 
     def run(&block)
-      while true
+      while !closed?
         connection = accept
         Thread.new(connection) do |connection|
           connection.run(&block)
@@ -67,6 +69,15 @@ module Lumberjack
       else
         Connection.new(fd)
       end
+    end
+
+    def closed?
+      @close
+    end
+
+    def close
+      @close = true
+      @tcp_server.close
     end
   end # class Server
 
@@ -214,13 +225,14 @@ module Lumberjack
       super()
       @parser = Parser.new
       @fd = fd
+      @closed = false
 
       # a safe default until we are told by the client what window size to use
       @window_size = 1 
     end
 
     def run(&block)
-      while true
+      while !closed?
         read_socket(&block)
       end
     rescue EOFError, OpenSSL::SSL::SSLError, IOError, Errno::ECONNRESET
@@ -248,7 +260,12 @@ module Lumberjack
       end
     end
 
+    def closed?
+      @closed
+    end
+
     def close
+      @closed = true
       @fd.close
     end
 
