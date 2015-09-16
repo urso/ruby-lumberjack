@@ -12,6 +12,8 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
   gem.version       = "0.0.25"
 
+  gem.add_runtime_dependency "concurrent-ruby"
+
   gem.add_development_dependency "flores", "~>0.0.6"
   gem.add_development_dependency "rspec"
   gem.add_development_dependency "stud"

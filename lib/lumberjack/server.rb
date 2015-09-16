@@ -4,6 +4,7 @@ require "socket"
 require "thread"
 require "openssl"
 require "zlib"
+require "concurrent"
 
 module Lumberjack
   class Server
@@ -33,7 +34,7 @@ module Lumberjack
         end
       end
 
-      @close = false
+      @close = Concurrent::AtomicBoolean.new
 
       @tcp_server = TCPServer.new(@options[:address], @options[:port])
 
@@ -45,6 +46,8 @@ module Lumberjack
       @ssl.key = OpenSSL::PKey::RSA.new(File.read(@options[:ssl_key]),
                                         @options[:ssl_key_passphrase])
       @ssl_server = OpenSSL::SSL::SSLServer.new(@tcp_server, @ssl)
+
+      @mutex = Mutex.new
     end # def initialize
 
     def run(&block)
@@ -72,12 +75,12 @@ module Lumberjack
     end
 
     def closed?
-      @close
+      @close.value
     end
 
     def close
-      @close = true
-      @tcp_server.close
+      @close.make_true
+      @mutex.synchronize { @tcp_server.close unless closed? }
     end
   end # class Server
 
@@ -225,7 +228,7 @@ module Lumberjack
       super()
       @parser = Parser.new
       @fd = fd
-      @closed = false
+      @closed = Concurrent::AtomicBoolean.new
 
       # a safe default until we are told by the client what window size to use
       @window_size = 1 
@@ -261,12 +264,12 @@ module Lumberjack
     end
 
     def closed?
-      @closed
+      @closed.value
     end
 
     def close
-      @closed = true
-      @fd.close
+      @closed.make_true
+      @mutex.synchronize { @fd.close unless @fd.closed? }
     end
 
     def window_size(size)
