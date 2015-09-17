@@ -46,8 +46,6 @@ module Lumberjack
       @ssl.key = OpenSSL::PKey::RSA.new(File.read(@options[:ssl_key]),
                                         @options[:ssl_key_passphrase])
       @ssl_server = OpenSSL::SSL::SSLServer.new(@tcp_server, @ssl)
-
-      @mutex = Mutex.new
     end # def initialize
 
     def run(&block)
@@ -80,7 +78,7 @@ module Lumberjack
 
     def close
       @close.make_true
-      @mutex.synchronize { @tcp_server.close unless closed? }
+      @tcp_server.close unless @tcp_server.closed?
     end
   end # class Server
 
@@ -269,7 +267,7 @@ module Lumberjack
 
     def close
       @closed.make_true
-      @mutex.synchronize { @fd.close unless @fd.closed? }
+      @fd.close unless @fd.closed?
     end
 
     def window_size(size)
